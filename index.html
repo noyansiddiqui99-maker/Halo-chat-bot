@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Halo — AI Chat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0a0c16;
+    --bg-deep: #060710;
+    --panel: rgba(20, 23, 41, 0.62);
+    --panel-solid: #12142a;
+    --border: rgba(148, 152, 200, 0.14);
+    --border-hover: rgba(148, 152, 200, 0.28);
+    --violet: #7c6ff0;
+    --violet-soft: #a79bff;
+    --teal: #4fe3c1;
+    --amber: #f0b86f;
+    --text: #e9eaf5;
+    --muted: #8a8fac;
+    --muted-dim: #5c6081;
+    --radius: 16px;
+    --font-display: 'Sora', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  *{ box-sizing: border-box; margin:0; padding:0; }
+  html,body{ height:100%; }
+  body{
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+  }
+
+  /* ===== Ambient background field ===== */
+  .field{
+    position: fixed; inset:0; z-index:0; overflow:hidden;
+    background:
+      radial-gradient(ellipse 60% 45% at 18% 8%, rgba(124,111,240,0.16), transparent 60%),
+      radial-gradient(ellipse 50% 40% at 85% 92%, rgba(79,227,193,0.10), transparent 60%),
+      var(--bg-deep);
+  }
+  .field::before{
+    content:"";
+    position:absolute; inset:-20%;
+    background-image:
+      linear-gradient(rgba(148,152,200,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148,152,200,0.035) 1px, transparent 1px);
+    background-size: 42px 42px;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, black, transparent 75%);
+    animation: drift 60s linear infinite;
+  }
+  @keyframes drift{ from{ transform: translate(0,0);} to{ transform: translate(-42px,-42px);} }
+
+  .grain{ position:fixed; inset:0; z-index:1; pointer-events:none; opacity:0.03;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ===== App shell ===== */
+  .app{ position:relative; z-index:2; display:flex; height:100vh; perspective: 1800px; }
+
+  /* ===== Sidebar ===== */
+  .sidebar{
+    width: 284px; flex-shrink:0; display:flex; flex-direction:column;
+    background: linear-gradient(180deg, rgba(18,20,42,0.7), rgba(12,13,28,0.7));
+    border-right: 1px solid var(--border);
+    backdrop-filter: blur(18px);
+    transition: margin-left .35s cubic-bezier(.6,0,.3,1);
+    position:relative; z-index:5;
+  }
+  .sidebar.collapsed{ margin-left:-284px; }
+
+  .brand{ display:flex; align-items:center; gap:12px; padding:20px 18px 14px; }
+  .orb-wrap{ width:34px; height:34px; perspective: 300px; flex-shrink:0; }
+  .orb{
+    width:100%; height:100%; position:relative; transform-style: preserve-3d;
+    animation: orbit 7s linear infinite;
+  }
+  .orb .ring{
+    position:absolute; inset:0; border-radius:50%;
+    border: 1.6px solid transparent;
+    background: conic-gradient(from 0deg, var(--violet), var(--teal), var(--amber), var(--violet)) border-box;
+    -webkit-mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+  }
+  .orb .ring:nth-child(1){ transform: rotateY(20deg) rotateX(60deg); }
+  .orb .ring:nth-child(2){ transform: rotateY(70deg) rotateX(10deg); opacity:.75; }
+  .orb .core{
+    position:absolute; inset:9px; border-radius:50%;
+    background: radial-gradient(circle at 32% 28%, #fff, var(--violet-soft) 40%, var(--violet) 75%);
+    box-shadow: 0 0 16px rgba(124,111,240,0.7);
+  }
+  @keyframes orbit{ from{ transform: rotateY(0deg);} to{ transform: rotateY(360deg);} }
+
+  .brand-name{ font-family: var(--font-display); font-weight:700; font-size:16.5px; letter-spacing:0.2px; }
+  .brand-name span{ color: var(--muted); font-weight:500; font-size: 11px; display:block; font-family: var(--font-mono); letter-spacing: 0.5px; margin-top: 1px;}
+
+  .sidebar-section{ padding: 0 14px; }
+  .new-chat-btn{
+    width:100%; display:flex; align-items:center; gap:10px; padding:11px 14px;
+    background: linear-gradient(135deg, rgba(124,111,240,0.18), rgba(79,227,193,0.10));
+    border:1px solid var(--border-hover); border-radius: 12px; color:var(--text);
+    font-family: var(--font-body); font-weight:600; font-size:13.5px; cursor:pointer;
+    transform-style: preserve-3d; transition: transform .25s ease, box-shadow .25s ease, background .25s ease;
+    margin: 6px 0 16px;
+  }
+  .new-chat-btn:hover{
+    transform: translateY(-2px) rotateX(4deg);
+    box-shadow: 0 10px 24px -8px rgba(124,111,240,0.45);
+    background: linear-gradient(135deg, rgba(124,111,240,0.28), rgba(79,227,193,0.16));
+  }
+  .new-chat-btn:active{ transform: translateY(0) rotateX(0); }
+  .new-chat-btn svg{ width:16px; height:16px; }
+
+  .search-wrap{ position:relative; margin-bottom: 18px; }
+  .search-wrap input{
+    width:100%; background: rgba(255,255,255,0.03); border:1px solid var(--border);
+    border-radius:10px; padding: 9px 12px 9px 34px; color:var(--text); font-size:13px;
+    font-family: var(--font-body); outline:none; transition: border-color .2s, background .2s;
+  }
+  .search-wrap input:focus{ border-color: var(--violet-soft); background: rgba(255,255,255,0.05); }
+  .search-wrap svg{ position:absolute; left:11px; top:50%; transform: translateY(-50%); width:14px; height:14px; color: var(--muted-dim); }
+
+  .nav-group{ display:flex; flex-direction:column; gap:2px; margin-bottom: 4px; }
+  .nav-item{
+    display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:9px;
+    font-size:13px; color: var(--muted); cursor:pointer; transition: all .18s ease;
+  }
+  .nav-item:hover{ background: rgba(255,255,255,0.045); color: var(--text); transform: translateX(2px); }
+  .nav-item svg{ width:15px; height:15px; flex-shrink:0; }
+  .nav-item .count{ margin-left:auto; font-family: var(--font-mono); font-size:10.5px; color: var(--muted-dim); }
+
+  .sidebar-scroll{ flex:1; overflow-y:auto; padding-bottom: 12px; }
+  .sidebar-scroll::-webkit-scrollbar{ width:5px; }
+  .sidebar-scroll::-webkit-scrollbar-thumb{ background: rgba(148,152,200,0.18); border-radius:4px; }
+
+  .label-row{
+    display:flex; align-items:center; justify-content:space-between; padding: 16px 14px 6px;
+    font-family: var(--font-mono); font-size:10.5px; letter-spacing:1px; text-transform:uppercase;
+    color: var(--muted-dim);
+  }
+  .label-row .plus{ cursor:pointer; opacity:.7; transition: opacity .2s, transform .2s; }
+  .label-row .plus:hover{ opacity:1; transform: rotate(90deg); }
+
+  .folder-item{
+    display:flex; align-items:center; gap:9px; padding:8px 14px; font-size:13px; color: var(--text);
+    cursor:pointer; transition: background .18s;
+  }
+  .folder-item:hover{ background: rgba(255,255,255,0.04); }
+  .folder-item svg{ width:15px; height:15px; color: var(--amber); flex-shrink:0; }
+  .folder-item .sub{ margin-left:auto; font-family: var(--font-mono); font-size:10px; color:var(--muted-dim); }
+
+  .chat-item{
+    position:relative; display:flex; align-items:center; padding:8px 14px 8px 30px; font-size:13px;
+    color: var(--muted); cursor:pointer; border-radius:0; transition: background .18s, color .18s;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .chat-item::before{
+    content:""; position:absolute; left:14px; top:50%; width:5px; height:5px; border-radius:50%;
+    background: var(--muted-dim); transform: translateY(-50%); transition: background .2s, box-shadow .2s;
+  }
+  .chat-item:hover{ background: rgba(255,255,255,0.045); color: var(--text); }
+  .chat-item.active{ background: rgba(124,111,240,0.12); color: var(--text); }
+  .chat-item.active::before{ background: var(--teal); box-shadow: 0 0 6px var(--teal); }
+
+  .sidebar-footer{
+    display:flex; align-items:center; gap:10px; padding:14px; border-top:1px solid var(--border);
+  }
+  .avatar{
+    width:30px; height:30px; border-radius:9px; flex-shrink:0;
+    background: linear-gradient(135deg, var(--violet), var(--teal));
+    display:flex; align-items:center; justify-content:center; font-family: var(--font-display); font-weight:700; font-size:12px;
+  }
+  .sidebar-footer .who{ font-size:13px; font-weight:600; }
+  .sidebar-footer .plan{ font-size:10.5px; color: var(--muted-dim); font-family: var(--font-mono); }
+
+  /* ===== Collapse toggle ===== */
+  .collapse-btn{
+    position:absolute; top:18px; left:284px; z-index:6; width:26px; height:26px; border-radius:50%;
+    background: var(--panel-solid); border:1px solid var(--border); color:var(--muted);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    transition: left .35s cubic-bezier(.6,0,.3,1), transform .2s, color .2s;
+  }
+  .collapse-btn:hover{ color:var(--text); transform: scale(1.08); }
+  .sidebar.collapsed ~ .collapse-btn{ left: 12px; }
+  .collapse-btn svg{ width:13px; height:13px; transition: transform .35s; }
+  .sidebar.collapsed ~ .collapse-btn svg{ transform: rotate(180deg); }
+
+  /* ===== Main column ===== */
+  .main{ flex:1; display:flex; flex-direction:column; min-width:0; position:relative; }
+
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between; padding: 16px 28px;
+    border-bottom: 1px solid var(--border);
+  }
+  .model-chip{
+    display:flex; align-items:center; gap:8px; padding:7px 13px 7px 10px; border-radius:20px;
+    background: rgba(255,255,255,0.03); border:1px solid var(--border); cursor:pointer;
+    font-size:12.5px; font-weight:600; transition: border-color .2s, transform .2s;
+  }
+  .model-chip:hover{ border-color: var(--border-hover); transform: translateY(-1px); }
+  .model-chip .dot{ width:7px; height:7px; border-radius:50%; background: var(--teal); box-shadow:0 0 8px var(--teal); }
+  .model-chip svg{ width:12px; height:12px; color:var(--muted-dim); margin-left:2px;}
+
+  .top-actions{ display:flex; align-items:center; gap:8px; }
+  .icon-btn{
+    width:32px; height:32px; border-radius:9px; display:flex; align-items:center; justify-content:center;
+    color: var(--muted); cursor:pointer; transition: all .2s; border:1px solid transparent;
+  }
+  .icon-btn:hover{ background: rgba(255,255,255,0.05); color:var(--text); border-color: var(--border); }
+  .icon-btn svg{ width:16px; height:16px; }
+
+  /* ===== Chat area ===== */
+  .chat-scroll{ flex:1; overflow-y:auto; padding: 30px 0 10px; }
+  .chat-scroll::-webkit-scrollbar{ width:6px; }
+  .chat-scroll::-webkit-scrollbar-thumb{ background: rgba(148,152,200,0.16); border-radius:4px; }
+  .chat-inner{ max-width: 760px; margin:0 auto; padding: 0 24px; }
+
+  /* Empty state */
+  .empty-state{ display:flex; flex-direction:column; align-items:center; text-align:center; padding: 60px 20px 20px; }
+  .hero-orb-wrap{ width:88px; height:88px; perspective:500px; margin-bottom:22px; }
+  .hero-orb{ width:100%; height:100%; position:relative; transform-style:preserve-3d; animation: orbit 9s linear infinite; }
+  .hero-orb .ring{
+    position:absolute; inset:0; border-radius:50%; border:2.4px solid transparent;
+    background: conic-gradient(from 0deg, var(--violet), var(--teal), var(--amber), var(--violet)) border-box;
+    -webkit-mask: linear-gradient(#000 0 0) padding-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+  }
+  .hero-orb .ring:nth-child(1){ transform: rotateY(25deg) rotateX(65deg); }
+  .hero-orb .ring:nth-child(2){ transform: rotateY(70deg) rotateX(15deg); opacity:.7; }
+  .hero-orb .ring:nth-child(3){ transform: rotateY(110deg) rotateX(40deg); opacity:.45; }
+  .hero-orb .core{
+    position:absolute; inset:24px; border-radius:50%;
+    background: radial-gradient(circle at 32% 28%, #fff, var(--violet-soft) 40%, var(--violet) 78%);
+    box-shadow: 0 0 40px rgba(124,111,240,0.55);
+    animation: pulse 3s ease-in-out infinite;
+  }
+  @keyframes pulse{ 0%,100%{ transform: scale(1); } 50%{ transform: scale(1.08);} }
+
+  .empty-state h1{ font-family: var(--font-display); font-size: 26px; font-weight:700; letter-spacing:-0.3px; margin-bottom:8px; }
+  .empty-state p{ color: var(--muted); font-size:14px; max-width: 420px; line-height:1.5; margin-bottom: 30px; }
+
+  .suggestions{ display:grid; grid-template-columns: repeat(2, 1fr); gap:12px; width:100%; max-width: 620px; }
+  .suggestion-card{
+    position:relative; text-align:left; padding:15px 16px; border-radius: 14px;
+    background: var(--panel); border:1px solid var(--border); cursor:pointer;
+    transform-style:preserve-3d; transition: transform .15s ease, border-color .2s, box-shadow .2s;
+  }
+  .suggestion-card:hover{ border-color: var(--border-hover); box-shadow: 0 14px 30px -14px rgba(124,111,240,0.4); }
+  .suggestion-card .s-icon{ width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center; margin-bottom:10px; }
+  .suggestion-card .s-icon svg{ width:14px; height:14px; }
+  .suggestion-card h4{ font-size:13px; font-weight:600; margin-bottom:3px; }
+  .suggestion-card p{ font-size:11.5px; color:var(--muted); margin:0; line-height:1.4; }
+
+  /* Messages */
+  .msg{ display:flex; gap:14px; margin-bottom: 26px; animation: rise .4s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes rise{ from{ opacity:0; transform: translateY(10px);} to{ opacity:1; transform: translateY(0);} }
+  .msg-avatar{ width:30px; height:30px; border-radius:9px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; font-family: var(--font-display); }
+  .msg.user .msg-avatar{ background: rgba(255,255,255,0.06); border:1px solid var(--border); }
+  .msg.bot .msg-avatar{ background: linear-gradient(135deg, var(--violet), var(--teal)); }
+  .msg-body{ flex:1; padding-top:4px; }
+  .msg-name{ font-size:12px; font-weight:600; color: var(--muted); margin-bottom:5px; font-family: var(--font-mono); letter-spacing:.3px; }
+  .msg-text{ font-size:14.5px; line-height:1.65; color: var(--text); }
+  .msg-text p + p{ margin-top:10px; }
+
+  .typing{ display:inline-flex; gap:4px; padding:6px 0; }
+  .typing span{ width:6px; height:6px; border-radius:50%; background: var(--violet-soft); animation: bounce 1.2s infinite ease-in-out; }
+  .typing span:nth-child(2){ animation-delay:.15s; }
+  .typing span:nth-child(3){ animation-delay:.3s; }
+  @keyframes bounce{ 0%,60%,100%{ transform: translateY(0); opacity:.5;} 30%{ transform: translateY(-5px); opacity:1;} }
+
+  /* ===== Composer ===== */
+  .composer-wrap{ padding: 12px 24px 22px; }
+  .composer{
+    max-width: 760px; margin:0 auto; position:relative;
+    background: var(--panel); border:1px solid var(--border); border-radius: 20px;
+    backdrop-filter: blur(20px); padding: 12px 14px 10px;
+    transform-style: preserve-3d; transition: transform .12s ease, box-shadow .3s ease, border-color .3s ease;
+    box-shadow: 0 20px 50px -20px rgba(0,0,0,0.6);
+  }
+  .composer.focused{
+    border-color: rgba(124,111,240,0.5);
+    box-shadow: 0 24px 60px -18px rgba(124,111,240,0.35), 0 0 0 1px rgba(124,111,240,0.15);
+  }
+
+  .attach-chips{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
+  .attach-chip{
+    display:flex; align-items:center; gap:6px; background: rgba(255,255,255,0.05); border:1px solid var(--border);
+    border-radius:8px; padding:5px 8px 5px 6px; font-size:11.5px; font-family: var(--font-mono); color: var(--text);
+    animation: rise .25s ease both;
+  }
+  .attach-chip svg{ width:12px; height:12px; color: var(--teal); }
+  .attach-chip .rm{ cursor:pointer; color: var(--muted-dim); font-size:13px; line-height:1; margin-left:2px; }
+  .attach-chip .rm:hover{ color: var(--text); }
+
+  .composer textarea{
+    width:100%; resize:none; background:transparent; border:none; outline:none; color: var(--text);
+    font-family: var(--font-body); font-size:14.5px; line-height:1.5; max-height:180px; min-height:26px;
+    padding: 4px 6px;
+  }
+  .composer textarea::placeholder{ color: var(--muted-dim); }
+
+  .composer-actions{ display:flex; align-items:center; justify-content:space-between; margin-top:6px; }
+  .composer-left{ display:flex; align-items:center; gap:4px; position:relative; }
+
+  .comp-btn{
+    width:32px; height:32px; border-radius:9px; display:flex; align-items:center; justify-content:center;
+    color: var(--muted); cursor:pointer; transition: all .18s; border:1px solid transparent;
+  }
+  .comp-btn:hover{ background: rgba(255,255,255,0.05); color: var(--text); }
+  .comp-btn svg{ width:16px; height:16px; }
+
+  .attach-menu{
+    position:absolute; bottom:40px; left:0; background: var(--panel-solid); border:1px solid var(--border);
+    border-radius:12px; padding:6px; width:190px; box-shadow: 0 20px 40px -12px rgba(0,0,0,0.6);
+    display:none; flex-direction:column; gap:1px; z-index:20;
+  }
+  .attach-menu.open{ display:flex; animation: menuIn .18s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes menuIn{ from{ opacity:0; transform: translateY(6px) scale(.97);} to{ opacity:1; transform: translateY(0) scale(1);} }
+  .attach-menu .opt{ display:flex; align-items:center; gap:9px; padding:8px 9px; border-radius:8px; font-size:12.5px; cursor:pointer; transition: background .15s; }
+  .attach-menu .opt:hover{ background: rgba(255,255,255,0.06); }
+  .attach-menu .opt svg{ width:14px; height:14px; color: var(--muted); }
+
+  .send-btn{
+    width:34px; height:34px; border-radius:10px; border:none; cursor:pointer;
+    background: linear-gradient(135deg, var(--violet), #6a5cf0);
+    display:flex; align-items:center; justify-content:center;
+    transform-style: preserve-3d; transition: transform .15s ease, box-shadow .2s ease, opacity .2s;
+    box-shadow: 0 8px 20px -6px rgba(124,111,240,0.6);
+  }
+  .send-btn:hover{ transform: translateY(-2px) rotateX(8deg); box-shadow: 0 12px 26px -6px rgba(124,111,240,0.75); }
+  .send-btn:active{ transform: translateY(0) rotateX(0) scale(.94); }
+  .send-btn svg{ width:15px; height:15px; color:#fff; }
+  .send-btn:disabled{ opacity:.35; cursor:not-allowed; box-shadow:none; transform:none; }
+
+  .disclaimer{ text-align:center; font-size:10.5px; color: var(--muted-dim); margin-top:10px; font-family: var(--font-mono); }
+
+  #fileInput{ display:none; }
+
+  @media (max-width: 860px){
+    .sidebar{ position:fixed; height:100vh; margin-left:-284px; }
+    .sidebar.open{ margin-left:0; box-shadow: 20px 0 60px rgba(0,0,0,0.5); }
+    .collapse-btn{ left:12px; }
+    .sidebar.open ~ .collapse-btn{ left:296px; }
+    .suggestions{ grid-template-columns: 1fr; }
+  }
+
+  /* ===== Premium interaction upgrades ===== */
+  .hero-orb-wrap{ animation: floatOrb 6s ease-in-out infinite; }
+  .hero-orb{ transition: filter .35s ease, transform .35s ease; }
+  .hero-orb .core{ transition: box-shadow .35s ease, transform .35s ease; }
+  .hero-orb-wrap.typing .hero-orb{ animation-duration: 3.2s; filter: saturate(1.25) brightness(1.12); }
+  .hero-orb-wrap.typing .hero-orb .ring{ animation: energySpin 2.6s linear infinite; }
+  .hero-orb-wrap.sending .hero-orb{ animation: sendBurst .75s ease both; }
+  .hero-orb-wrap.thinking .hero-orb .core{ box-shadow: 0 0 58px rgba(79,227,193,.82); }
+  .hero-orb-wrap.complete .hero-orb{ animation: completeBurst .8s ease both; }
+  @keyframes floatOrb{ 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-7px) } }
+  @keyframes energySpin{ to{ transform:rotateZ(360deg) rotateY(70deg) rotateX(15deg) } }
+  @keyframes sendBurst{ 0%{ transform:scale(1) } 38%{ transform:scale(1.14) } 100%{ transform:scale(1) } }
+  @keyframes completeBurst{ 0%{ filter:brightness(1) } 45%{ filter:brightness(1.65) saturate(1.35) } 100%{ filter:brightness(1) } }
+  .chat-item{ display:flex; align-items:center; gap:6px; }
+  .chat-item .chat-title{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+  .chat-item .chat-actions{ display:flex; gap:2px; opacity:0; transition:opacity .18s; }
+  .chat-item:hover .chat-actions,.chat-item.active .chat-actions{ opacity:1; }
+  .chat-action{ border:0; background:transparent; color:var(--muted-dim); cursor:pointer; padding:3px; border-radius:5px; line-height:1; }
+  .chat-action:hover{ color:var(--text); background:rgba(255,255,255,.08); }
+  .history-empty{ padding:18px 14px; color:var(--muted-dim); font-size:12px; line-height:1.5; }
+  .msg.bot .msg-avatar{ box-shadow:0 0 0 0 rgba(79,227,193,0); animation:avatarGlow 2.8s ease-in-out infinite; }
+  @keyframes avatarGlow{ 50%{ box-shadow:0 0 18px -5px rgba(79,227,193,.7); } }
+  .msg-text{ overflow-wrap:anywhere; }
+  .composer:has(textarea:not(:placeholder-shown)){ box-shadow:0 24px 60px -18px rgba(124,111,240,.42), 0 0 0 1px rgba(79,227,193,.12); }
+  .mobile-scrim{ display:none; }
+  @media (max-width: 860px){
+    .topbar{ padding:12px 18px; }
+    .chat-inner{ padding:0 16px; }
+    .composer-wrap{ padding:10px 14px 16px; }
+    .sidebar.open + .mobile-scrim{ display:block; position:fixed; inset:0; z-index:4; background:rgba(0,0,0,.45); backdrop-filter:blur(2px); }
+    .collapse-btn{ z-index:7; }
+  }
+  @media (max-width: 520px){
+    .model-chip{ font-size:11px; padding:6px 9px; }
+    .top-actions{ gap:2px; }
+    .empty-state{ padding-top:34px; }
+    .empty-state h1{ font-size:22px; }
+    .hero-orb-wrap{ width:72px; height:72px; }
+    .hero-orb .core{ inset:20px; }
+    .suggestions{ gap:9px; }
+    .suggestion-card{ padding:13px; }
+    .disclaimer{ font-size:9px; }
+  }
+
+
+  /* ===== Halo atmosphere and interaction system ===== */
+  body{ transition:background-color .8s ease, color .5s ease; }
+  body::after{ content:""; position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.55; transition:background .9s ease, opacity .7s ease; background:radial-gradient(circle at 50% 38%, rgba(124,111,240,.09), transparent 36%); }
+  body[data-orb-state="typing"]::after{ opacity:.9; background:radial-gradient(circle at 50% 38%, rgba(79,227,193,.16), transparent 43%), radial-gradient(circle at 72% 18%, rgba(240,184,111,.08), transparent 30%); }
+  body[data-orb-state="thinking"]::after{ opacity:1; background:radial-gradient(circle at 50% 36%, rgba(124,111,240,.2), transparent 42%), radial-gradient(circle at 20% 80%, rgba(79,227,193,.1), transparent 32%); }
+  body[data-orb-state="complete"]::after{ opacity:1; background:radial-gradient(circle at 50% 36%, rgba(240,184,111,.16), transparent 38%), radial-gradient(circle at 80% 84%, rgba(79,227,193,.1), transparent 34%); }
+  .app{ isolation:isolate; }
+  .hero-orb-wrap{ position:relative; width:124px; height:124px; margin-bottom:20px; cursor:pointer; user-select:none; transition:transform .45s cubic-bezier(.2,.9,.2,1), filter .45s ease; }
+  .hero-orb-wrap::before{ content:""; position:absolute; inset:-28px; border-radius:50%; background:radial-gradient(circle, rgba(124,111,240,.17), transparent 66%); filter:blur(8px); opacity:.58; transition:transform .5s ease, opacity .5s ease; }
+  .hero-orb-wrap:hover{ transform:translateY(-5px) scale(1.08) rotateX(calc(var(--pointer-y, 0) * -1deg)) rotateY(calc(var(--pointer-x, 0) * 1deg)); filter:brightness(1.18) saturate(1.3); }
+  .hero-orb-wrap:hover::before{ transform:scale(1.35); opacity:.95; }
+  .hero-orb-wrap:active{ transform:scale(.96); }
+  .hero-orb{ animation:orbFloat 6s ease-in-out infinite; filter:brightness(calc(1 + var(--halo-energy, 0) * .32)) saturate(calc(1 + var(--halo-energy, 0) * .45)); }
+  .hero-orb .ring{ transition:border-width .4s ease, opacity .4s ease; }
+  .hero-orb .ring:nth-child(1){ animation:haloRingA 10s linear infinite; }
+  .hero-orb .ring:nth-child(2){ animation:haloRingB 13s linear infinite reverse; }
+  .hero-orb .ring:nth-child(3){ animation:haloRingC 17s linear infinite; }
+  .hero-orb .core{ background:radial-gradient(circle at 28% 24%, #fff, hsl(var(--halo-hue,248) 100% 86%) 24%, hsl(var(--halo-hue,248) 78% 62%) 57%, hsl(calc(var(--halo-hue,248) + 28) 78% 47%) 100%); box-shadow:0 0 calc(38px + var(--halo-energy,0) * 44px) hsla(var(--halo-hue,248), 90%, 68%, .72); }
+  @keyframes orbFloat{ 0%,100%{ transform:translateY(0) rotateZ(0deg) } 50%{ transform:translateY(-9px) rotateZ(2deg) } }
+  @keyframes haloRingA{ to{ transform:rotateY(385deg) rotateX(65deg) rotateZ(12deg); } }
+  @keyframes haloRingB{ to{ transform:rotateY(-290deg) rotateX(15deg) rotateZ(-18deg); } }
+  @keyframes haloRingC{ to{ transform:rotateY(470deg) rotateX(40deg) rotateZ(24deg); } }
+  .hero-orb-wrap.typing .hero-orb{ animation:orbTyping 2.2s ease-in-out infinite; }
+  .hero-orb-wrap.thinking .hero-orb{ animation:orbThinking 1.3s ease-in-out infinite; }
+  .hero-orb-wrap.thinking .hero-orb .ring{ border-width:3px; }
+  .hero-orb-wrap.complete .hero-orb{ animation:orbComplete .9s ease both; }
+  @keyframes orbTyping{ 0%,100%{ transform:scale(.98) rotateZ(-2deg); } 50%{ transform:scale(1.06) rotateZ(3deg); } }
+  @keyframes orbThinking{ 0%,100%{ transform:scale(.98) rotateZ(0deg); } 50%{ transform:scale(1.1) rotateZ(8deg); } }
+  @keyframes orbComplete{ 0%{transform:scale(1)} 45%{transform:scale(1.25)} 100%{transform:scale(1)} }
+  .halo-status{ min-height:18px; margin:-10px 0 22px; color:var(--muted); font:500 10px var(--font-mono); letter-spacing:.08em; text-transform:uppercase; opacity:.74; transition:color .4s, opacity .4s; }
+  body[data-orb-state="typing"] .halo-status{ color:var(--teal); opacity:1; }
+  body[data-orb-state="thinking"] .halo-status{ color:var(--violet-soft); opacity:1; animation:statusPulse 1.3s ease-in-out infinite; }
+  body[data-orb-state="complete"] .halo-status{ color:var(--amber); opacity:1; }
+  @keyframes statusPulse{ 50%{ opacity:.4; letter-spacing:.16em; } }
+  .halo-field{ position:absolute; inset:-70px; pointer-events:none; overflow:visible; z-index:-1; }
+  .mini-halo{ position:absolute; left:50%; top:50%; width:18px; height:18px; border-radius:50%; transform:translate(-50%,-50%) scale(.2); opacity:0; background:radial-gradient(circle at 30% 25%, #fff, hsl(var(--mini-hue) 100% 78%) 30%, hsl(var(--mini-hue) 82% 52%) 100%); box-shadow:0 0 18px hsla(var(--mini-hue),90%,65%,.82), 0 0 44px hsla(var(--mini-hue),90%,62%,.28); animation:miniLaunch 1.1s cubic-bezier(.16,.86,.24,1) forwards; }
+  .mini-halo::after{ content:""; position:absolute; inset:-7px; border:1px solid hsla(var(--mini-hue),90%,70%,.65); border-radius:50%; animation:miniRing 1.4s ease-out infinite; }
+  @keyframes miniLaunch{ 0%{ transform:translate(-50%,-50%) scale(.2); opacity:0; } 18%{ opacity:1; } 100%{ transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1); opacity:.9; } }
+  @keyframes miniRing{ to{ transform:scale(1.8); opacity:0; } }
+  .halo-counter{ position:absolute; left:50%; top:calc(100% + 10px); transform:translateX(-50%); color:var(--muted-dim); font:10px var(--font-mono); white-space:nowrap; opacity:0; transition:opacity .3s; }
+  .hero-orb-wrap:hover .halo-counter,.hero-orb-wrap.has-minis .halo-counter{ opacity:1; }
+  .empty-state p{ margin-bottom:18px; }
+  .empty-state{ position:relative; }
+  .suggestions{ position:relative; z-index:1; }
+  .main{ background:linear-gradient(120deg, rgba(10,12,22,.1), rgba(20,18,48,.08)); }
+  .composer.focused{ background:linear-gradient(115deg, rgba(27,25,57,.82), rgba(12,34,44,.74)); }
+  @media (max-width:520px){ .hero-orb-wrap{ width:102px; height:102px; } .hero-orb-wrap::before{ inset:-20px; } }
+
+</style>
+</head>
+<body>
+
+<div class="field"></div>
+<div class="grain"></div>
+
+<div class="app">
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="orb-wrap"><div class="orb"><div class="ring"></div><div class="ring"></div><div class="core"></div></div></div>
+      <div class="brand-name">Halo<span>AI WORKSPACE</span></div>
+    </div>
+
+    <div class="sidebar-section">
+      <button class="new-chat-btn" id="newChatBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        New chat
+      </button>
+
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input type="search" id="searchInput" placeholder="Search chats…" aria-label="Search conversations">
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          Projects <span class="count">4</span>
+        </div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h5l2 2h9v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"/></svg>
+          Folders <span class="count">6</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-scroll">
+      <div class="label-row">Projects <span class="plus">+</span></div>
+      <div class="folder-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        Portfolio Redesign <span class="sub">12</span>
+      </div>
+      <div class="folder-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        Thesis Research <span class="sub">31</span>
+      </div>
+
+      <div class="label-row">Folders <span class="plus">+</span></div>
+      <div class="folder-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h5l2 2h9v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"/></svg>
+        Client Work <span class="sub">8</span>
+      </div>
+      <div class="folder-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h5l2 2h9v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"/></svg>
+        Learning Notes <span class="sub">15</span>
+      </div>
+
+      <div id="conversationGroups"></div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="avatar">U</div>
+      <div>
+        <div class="who">User</div>
+        <div class="plan">PRO PLAN</div>
+      </div>
+    </div>
+  </aside>
+  <div class="mobile-scrim" id="mobileScrim"></div>
+
+  <div class="collapse-btn" id="collapseBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg>
+  </div>
+
+  <!-- ===== MAIN ===== -->
+  <main class="main">
+    <div class="topbar">
+      <div class="model-chip">
+        <span class="dot"></span> Halo 2 — Reasoning
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div class="top-actions">
+        <div class="icon-btn" title="Share">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.5l6.8-3.9M8.6 13.5l6.8 3.9"/></svg>
+        </div>
+        <div class="icon-btn" title="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-scroll" id="chatScroll">
+      <div class="chat-inner" id="chatInner">
+
+        <div class="empty-state" id="emptyState">
+          <div class="hero-orb-wrap" id="heroOrb" role="button" tabindex="0" aria-label="Interactive Halo orb. Press to split into smaller halos."><div class="halo-field" id="haloField"></div><div class="hero-orb">
+            <div class="ring"></div><div class="ring"></div><div class="ring"></div><div class="core"></div>
+          </div><div class="halo-counter" id="haloCounter">Press Halo to split its energy · 0 / 10</div></div>
+          <h1 id="emptyTitle">What are we building today?</h1>
+          <p>Ask a question, drop in a file, or pull from a project. Halo keeps context across your whole workspace.</p>
+          <div class="halo-status" id="haloStatus">Ready when you are</div>
+
+          <div class="suggestions">
+            <div class="suggestion-card tilt" data-prompt="Explain this codebase's architecture in plain terms">
+              <div class="s-icon" style="background:rgba(124,111,240,0.15); color:var(--violet-soft);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              </div>
+              <h4>Explain this codebase</h4>
+              <p>Break down architecture and flow in plain terms</p>
+            </div>
+            <div class="suggestion-card tilt" data-prompt="Draft a project brief for a new mobile app">
+              <div class="s-icon" style="background:rgba(79,227,193,0.15); color:var(--teal);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </div>
+              <h4>Draft a project brief</h4>
+              <p>Scope goals, timeline, and deliverables fast</p>
+            </div>
+            <div class="suggestion-card tilt" data-prompt="Summarize the attached research paper into 5 bullet points">
+              <div class="s-icon" style="background:rgba(240,184,111,0.15); color:var(--amber);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              </div>
+              <h4>Summarize a document</h4>
+              <p>Upload a file and get the key takeaways</p>
+            </div>
+            <div class="suggestion-card tilt" data-prompt="Give me feedback on my resignation letter tone">
+              <div class="s-icon" style="background:rgba(124,111,240,0.15); color:var(--violet-soft);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+              </div>
+              <h4>Refine my writing</h4>
+              <p>Get tone, clarity, and structure feedback</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="composer-wrap">
+      <div class="composer" id="composer">
+        <div class="attach-chips" id="attachChips"></div>
+
+        <textarea id="msgInput" rows="1" placeholder="Message Halo, or drop a file…"></textarea>
+
+        <div class="composer-actions">
+          <div class="composer-left">
+            <div class="comp-btn" id="attachBtn" title="Attach">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            </div>
+            <div class="attach-menu" id="attachMenu">
+              <div class="opt" data-type="file">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Upload file
+              </div>
+              <div class="opt" data-type="project">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+                Add from project
+              </div>
+              <div class="opt" data-type="folder">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h5l2 2h9v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"/></svg>
+                Add from folder
+              </div>
+              <div class="opt" data-type="image">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                Add photo
+              </div>
+            </div>
+            <input type="file" id="fileInput" multiple>
+
+            <div class="comp-btn" title="Voice">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+            </div>
+          </div>
+
+          <button class="send-btn" id="sendBtn" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="disclaimer">Halo can make mistakes. Verify important information.</div>
+    </div>
+  </main>
+</div>
+
+<script>
+  const STORAGE_KEY = 'halo.frontend.conversations.v1';
+  const $ = (id) => document.getElementById(id);
+  const sidebar = $('sidebar'), collapseBtn = $('collapseBtn'), mobileScrim = $('mobileScrim');
+  const chatInner = $('chatInner'), emptyState = $('emptyState'), chatScroll = $('chatScroll');
+  const composer = $('composer'), input = $('msgInput'), sendBtn = $('sendBtn');
+  const attachBtn = $('attachBtn'), attachMenu = $('attachMenu'), fileInput = $('fileInput'), attachChips = $('attachChips');
+  const historyMount = $('conversationGroups'), searchInput = $('searchInput');
+  const orb = document.querySelector('.hero-orb-wrap'), haloField = $('haloField'), haloCounter = $('haloCounter'), haloStatus = $('haloStatus');
+  let miniHaloCount = 0, attachedFiles = [], activeId = null, conversations = loadConversations(), responseTimer = null;
+
+  function uid(prefix='id'){ return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`; }
+  function loadConversations(){
+    try { const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); return Array.isArray(saved) ? saved : []; }
+    catch { return []; }
+  }
+  function persist(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations)); }
+  function freshConversation(){ return { id:uid('chat'), title:'New conversation', createdAt:Date.now(), updatedAt:Date.now(), messages:[] }; }
+  function activeConversation(){ return conversations.find(c => c.id === activeId); }
+  function titleFrom(text){
+    const clean = text.replace(/\s+/g,' ').trim();
+    if (!clean) return 'New conversation';
+    const withoutLead = clean.replace(/^(please|can you|could you|help me|i need|tell me|show me)\s+/i,'');
+    const words = withoutLead.split(' ').slice(0,7);
+    let title = words.join(' ').replace(/[.!?,:;]+$/,'');
+    if (title.length > 34) title = title.slice(0,34).replace(/\s+\S*$/,'');
+    return title.charAt(0).toUpperCase() + title.slice(1) || 'New conversation';
+  }
+  function startNewChat(){
+    if (responseTimer) { clearTimeout(responseTimer); responseTimer = null; }
+    const chat = freshConversation();
+    conversations.unshift(chat); activeId = chat.id; persist(); renderHistory(); renderConversation();
+    input.value=''; input.style.height='auto'; clearAttachments(); input.focus();
+    if (window.matchMedia('(max-width: 860px)').matches) sidebar.classList.remove('open');
+  }
+  function ensureActive(){
+    if (!conversations.length) { const chat=freshConversation(); conversations=[chat]; activeId=chat.id; persist(); }
+    if (!activeId || !activeConversation()) activeId=conversations[0].id;
+  }
+  function groupLabel(timestamp){
+    const date = new Date(timestamp), now = new Date();
+    const day = 86400000;
+    const today = new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();
+    const value = new Date(date.getFullYear(),date.getMonth(),date.getDate()).getTime();
+    const diff = Math.floor((today-value)/day);
+    return diff === 0 ? 'Today' : diff === 1 ? 'Yesterday' : diff <= 7 ? 'Previous 7 days' : 'Older';
+  }
+  function renderHistory(){
+    const query = (searchInput.value || '').trim().toLowerCase();
+    const visible = conversations.filter(c => !query || `${c.title} ${c.messages.map(m=>m.content).join(' ')}`.toLowerCase().includes(query));
+    historyMount.innerHTML='';
+    const groups = ['Today','Yesterday','Previous 7 days','Older'];
+    groups.forEach(label => {
+      const items = visible.filter(c => groupLabel(c.updatedAt) === label);
+      if (!items.length) return;
+      const row=document.createElement('div'); row.className='label-row'; row.textContent=label; historyMount.appendChild(row);
+      items.sort((a,b)=>b.updatedAt-a.updatedAt).forEach(chat => {
+        const item=document.createElement('div'); item.className='chat-item' + (chat.id===activeId?' active':''); item.dataset.id=chat.id;
+        const title=document.createElement('span'); title.className='chat-title'; title.textContent=chat.title; item.appendChild(title);
+        const actions=document.createElement('span'); actions.className='chat-actions';
+        actions.innerHTML='<button class="chat-action" data-action="rename" title="Rename">✎</button><button class="chat-action" data-action="delete" title="Delete">×</button>';
+        item.appendChild(actions); historyMount.appendChild(item);
+      });
+    });
+    if (!visible.length) { const empty=document.createElement('div'); empty.className='history-empty'; empty.textContent=query?'No matching conversations.':'Your conversations will appear here.'; historyMount.appendChild(empty); }
+  }
+  function renderConversation(){
+    const chat=activeConversation(); if (!chat) return;
+    chatInner.querySelectorAll('.msg').forEach(node=>node.remove());
+    emptyState.style.display=chat.messages.length?'none':'flex';
+    chat.messages.forEach(message => appendMessage(message, false));
+    requestAnimationFrame(()=>chatScroll.scrollTop=chatScroll.scrollHeight);
+  }
+  function appendMessage(message, animate=true){
+    const node=document.createElement('div'); node.className=`msg ${message.role}`; if (!animate) node.style.animation='none';
+    const avatar=message.role==='user'?'U':'◆', name=message.role==='user'?'You':'Halo';
+    node.innerHTML=`<div class="msg-avatar">${avatar}</div><div class="msg-body"><div class="msg-name">${name}</div><div class="msg-text"><p>${escapeHtml(message.content)}</p></div></div>`;
+    chatInner.appendChild(node); return node;
+  }
+  function sendMessage(){
+    const text=input.value.trim(), attachmentSummary=attachedFiles.map(f=>f.displayName || f.name).join(', ');
+    if (!text && !attachedFiles.length) return;
+    ensureActive(); const chat=activeConversation();
+    const content=text || `Attached: ${attachmentSummary}`;
+    const userMessage={id:uid('msg'),role:'user',content,timestamp:Date.now()};
+    if (chat.title==='New conversation') chat.title=titleFrom(text || attachmentSummary);
+    chat.messages.push(userMessage); chat.updatedAt=Date.now(); persist(); renderHistory(); emptyState.style.display='none'; appendMessage(userMessage);
+    input.value=''; input.style.height='auto'; clearAttachments(); sendBtn.disabled=true; setOrbState('sending');
+    const botNode=document.createElement('div'); botNode.className='msg bot'; botNode.innerHTML='<div class="msg-avatar">◆</div><div class="msg-body"><div class="msg-name">Halo</div><div class="msg-text"><div class="typing"><span></span><span></span><span></span></div></div></div>'; chatInner.appendChild(botNode); setOrbState('thinking'); scrollBottom();
+    responseTimer=setTimeout(()=>{
+      const response='This is a front-end demo response. No real AI service is connected; this placeholder shows where a live answer could appear.';
+      botNode.querySelector('.msg-text').innerHTML=`<p>${response}</p>`;
+      chat.messages.push({id:uid('msg'),role:'bot',content:response,timestamp:Date.now()}); chat.updatedAt=Date.now(); persist(); renderHistory(); setOrbState('complete'); scrollBottom();
+      setTimeout(()=>setOrbState('idle'),800);
+    },900);
+  }
+  function scrollBottom(){ requestAnimationFrame(()=>chatScroll.scrollTo({top:chatScroll.scrollHeight,behavior:'smooth'})); }
+  function escapeHtml(str){ const d=document.createElement('div'); d.textContent=str; return d.innerHTML; }
+  function setOrbState(state){
+    if (!orb) return;
+    orb.classList.remove('typing','sending','thinking','complete');
+    document.body.dataset.orbState = state;
+    if(state!=='idle') orb.classList.add(state);
+    const labels={idle:'Ready when you are',typing:'Halo is attuning to your prompt',sending:'Signal received · preparing a response',thinking:'Halo is thinking through the thread',complete:'Signal complete · ready for the next thought'};
+    if(haloStatus) haloStatus.textContent=labels[state] || labels.idle;
+  }
+  function clearAttachments(){ attachedFiles=[]; attachChips.innerHTML=''; updateSendState(); }
+  function updateSendState(){
+    sendBtn.disabled=input.value.trim().length===0 && attachedFiles.length===0;
+    const energy=Math.min(1, input.value.trim().length/140);
+    if(orb){ orb.style.setProperty('--halo-energy', energy.toFixed(2)); orb.style.setProperty('--halo-hue', Math.round(248 - energy*74)); }
+    setOrbState(input.value.trim()?'typing':'idle');
+  }
+  function addChip(file, type='file'){
+    const record=typeof file==='string'?{name:file,displayName:file,type}: {name:file.name,displayName:file.name,type:file.type||type,size:file.size||0};
+    attachedFiles.push(record); const chip=document.createElement('div'); chip.className='attach-chip';
+    const size=record.size ? ` · ${Math.max(1,Math.round(record.size/1024))} KB` : '';
+    chip.innerHTML=`<span aria-hidden="true">⌁</span><span title="${escapeHtml(record.displayName)}">${escapeHtml(record.displayName)}${size}</span><button class="rm" type="button" aria-label="Remove attachment">×</button>`;
+    chip.querySelector('.rm').addEventListener('click',()=>{ const i=attachedFiles.indexOf(record); if(i>-1) attachedFiles.splice(i,1); chip.remove(); updateSendState(); }); attachChips.appendChild(chip); updateSendState();
+  }
+  function renameConversation(id){
+    const chat=conversations.find(c=>c.id===id); if(!chat) return; const next=prompt('Rename conversation',chat.title); if(next && next.trim()){ chat.title=next.trim().slice(0,60); chat.updatedAt=Date.now(); persist(); renderHistory(); }
+  }
+  function deleteConversation(id){
+    const chat=conversations.find(c=>c.id===id); if(!chat || !confirm(`Delete “${chat.title}”?`)) return;
+    conversations=conversations.filter(c=>c.id!==id); if(activeId===id) activeId=conversations[0]?.id || null; persist(); ensureActive(); renderHistory(); renderConversation();
+  }
+
+  collapseBtn.addEventListener('click',()=>{ if(window.matchMedia('(max-width: 860px)').matches) sidebar.classList.toggle('open'); else sidebar.classList.toggle('collapsed'); });
+  mobileScrim?.addEventListener('click',()=>sidebar.classList.remove('open'));
+  $('newChatBtn').addEventListener('click',startNewChat);
+  historyMount.addEventListener('click',e=>{ const item=e.target.closest('.chat-item'); if(!item) return; const action=e.target.closest('[data-action]')?.dataset.action; if(action==='rename') return renameConversation(item.dataset.id); if(action==='delete') return deleteConversation(item.dataset.id); activeId=item.dataset.id; renderHistory(); renderConversation(); if(window.matchMedia('(max-width: 860px)').matches) sidebar.classList.remove('open'); });
+  searchInput.addEventListener('input',renderHistory);
+  input.addEventListener('focus',()=>composer.classList.add('focused')); input.addEventListener('blur',()=>composer.classList.remove('focused'));
+  input.addEventListener('input',()=>{ input.style.height='auto'; input.style.height=Math.min(input.scrollHeight,180)+'px'; updateSendState(); });
+  input.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }); sendBtn.addEventListener('click',sendMessage);
+  attachBtn.addEventListener('click',e=>{e.stopPropagation();attachMenu.classList.toggle('open');}); document.addEventListener('click',()=>attachMenu.classList.remove('open')); attachMenu.addEventListener('click',e=>e.stopPropagation());
+  attachMenu.querySelectorAll('.opt').forEach(opt=>opt.addEventListener('click',()=>{ attachMenu.classList.remove('open'); const type=opt.dataset.type; if(type==='file'||type==='image') fileInput.click(); else addChip(type==='project'?'Portfolio Redesign':'Client Work',type); }));
+  fileInput.addEventListener('change',()=>{Array.from(fileInput.files).forEach(file=>addChip(file)); fileInput.value='';});
+  document.querySelectorAll('.suggestion-card').forEach(card=>{ card.addEventListener('click',()=>{input.value=card.dataset.prompt;input.dispatchEvent(new Event('input'));input.focus();}); card.addEventListener('mousemove',e=>{const r=card.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;card.style.transform=`rotateY(${x*10}deg) rotateX(${-y*10}deg) translateZ(4px)`;}); card.addEventListener('mouseleave',()=>card.style.transform=''); });
+  composer.addEventListener('mousemove',e=>{const r=composer.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5;composer.style.transform=`rotateX(${x*-.6}deg)`;}); composer.addEventListener('mouseleave',()=>composer.style.transform='');
+  function updateHaloCounter(){ if(haloCounter) haloCounter.textContent=`Press Halo to split its energy · ${miniHaloCount} / 10`; if(orb) orb.classList.toggle('has-minis', miniHaloCount>0); }
+  function splitHalo(){
+    if(!haloField || miniHaloCount>=10) return;
+    miniHaloCount += 1;
+    const mini=document.createElement('span'); mini.className='mini-halo';
+    const angle=(miniHaloCount-1)*137.5*Math.PI/180, radius=34 + (miniHaloCount%3)*17;
+    mini.style.setProperty('--dx', `${Math.cos(angle)*radius}px`); mini.style.setProperty('--dy', `${Math.sin(angle)*radius}px`);
+    mini.style.setProperty('--mini-hue', `${(248 + miniHaloCount*31)%360}`);
+    mini.style.animationDelay=`${Math.min(.22,miniHaloCount*.018)}s`; haloField.appendChild(mini); updateHaloCounter();
+    setOrbState('complete'); setTimeout(()=>setOrbState(input.value.trim()?'typing':'idle'),650);
+  }
+  orb?.addEventListener('pointerenter',()=>{ if(!input.value.trim()) setOrbState('typing'); });
+  orb?.addEventListener('pointerleave',()=>{ if(!input.value.trim() && !orb.classList.contains('thinking')) setOrbState('idle'); });
+  orb?.addEventListener('pointermove',e=>{ const r=orb.getBoundingClientRect(); orb.style.setProperty('--pointer-x',(((e.clientX-r.left)/r.width-.5)*10).toFixed(2)); orb.style.setProperty('--pointer-y',(((e.clientY-r.top)/r.height-.5)*10).toFixed(2)); });
+  orb?.addEventListener('click',splitHalo);
+  orb?.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); splitHalo(); } });
+  updateHaloCounter(); setOrbState('idle');
+  ensureActive(); renderHistory(); renderConversation();
+</script>
+</body>
+</html>
