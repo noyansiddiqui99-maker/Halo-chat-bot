@@ -447,6 +447,58 @@
   .composer.focused{ background:linear-gradient(115deg, rgba(27,25,57,.82), rgba(12,34,44,.74)); }
   @media (max-width:520px){ .hero-orb-wrap{ width:102px; height:102px; } .hero-orb-wrap::before{ inset:-20px; } }
 
+
+  /* ===== Enchanted theme system ===== */
+  :root{
+    --theme-bg:#070916;
+    --theme-deep:#03050d;
+    --theme-primary:#a78bfa;
+    --theme-secondary:#67e8f9;
+    --theme-accent:#f0abfc;
+    --theme-glow:rgba(167,139,250,.28);
+  }
+  .field{ background:
+    radial-gradient(ellipse 62% 48% at 16% 8%, color-mix(in srgb, var(--theme-primary) 18%, transparent), transparent 62%),
+    radial-gradient(ellipse 55% 44% at 86% 90%, color-mix(in srgb, var(--theme-secondary) 13%, transparent), transparent 62%),
+    var(--theme-deep) !important; transition:background 1s ease; }
+  body{ background:var(--theme-bg); }
+  .sidebar{ background:linear-gradient(180deg,color-mix(in srgb,var(--theme-primary) 7%,rgba(18,20,42,.82)),color-mix(in srgb,var(--theme-secondary) 5%,rgba(12,13,28,.82))); }
+  .model-chip .dot{ background:var(--theme-secondary); box-shadow:0 0 10px var(--theme-secondary); }
+  .send-btn{ background:linear-gradient(135deg,var(--theme-primary),var(--theme-secondary)); box-shadow:0 8px 24px -7px var(--theme-glow); }
+  .new-chat-btn{ background:linear-gradient(135deg,color-mix(in srgb,var(--theme-primary) 17%,transparent),color-mix(in srgb,var(--theme-secondary) 10%,transparent)); }
+  .new-chat-btn:hover{ background:linear-gradient(135deg,color-mix(in srgb,var(--theme-primary) 28%,transparent),color-mix(in srgb,var(--theme-secondary) 18%,transparent)); }
+  .chat-item.active{ background:color-mix(in srgb,var(--theme-primary) 13%,transparent); }
+  .chat-item.active::before{ background:var(--theme-secondary); box-shadow:0 0 7px var(--theme-secondary); }
+  .suggestion-card:hover{ box-shadow:0 14px 30px -14px var(--theme-glow); }
+  .composer.focused{ background:linear-gradient(115deg,color-mix(in srgb,var(--theme-primary) 15%,rgba(27,25,57,.82)),color-mix(in srgb,var(--theme-secondary) 12%,rgba(12,34,44,.74))); }
+  .hero-orb-wrap::before{ background:radial-gradient(circle,color-mix(in srgb,var(--theme-primary) 19%,transparent),transparent 66%); }
+  .hero-orb .core{ background:radial-gradient(circle at 28% 24%,#fff,color-mix(in srgb,var(--theme-primary) 78%,white) 25%,var(--theme-primary) 58%,var(--theme-secondary) 100%); box-shadow:0 0 52px var(--theme-glow); }
+
+  .theme-picker-wrap{ position:relative; }
+  .theme-btn{ display:flex; align-items:center; gap:8px; min-height:34px; padding:0 11px; border:1px solid var(--border); border-radius:10px; background:rgba(255,255,255,.035); color:var(--muted); cursor:pointer; font:600 11px var(--font-body); transition:.2s; }
+  .theme-btn:hover{ color:var(--text); border-color:var(--border-hover); transform:translateY(-1px); box-shadow:0 8px 24px -12px var(--theme-glow); }
+  .theme-swatch{ width:16px; height:16px; border-radius:50%; background:linear-gradient(135deg,var(--theme-primary),var(--theme-secondary),var(--theme-accent)); box-shadow:0 0 12px var(--theme-glow); }
+  .theme-menu{ position:absolute; right:0; top:43px; width:235px; padding:8px; display:none; gap:5px; z-index:30; background:rgba(12,14,28,.96); border:1px solid var(--border); border-radius:14px; box-shadow:0 24px 60px rgba(0,0,0,.5); backdrop-filter:blur(22px); }
+  .theme-menu.open{ display:grid; animation:themeMenuIn .2s ease both; }
+  @keyframes themeMenuIn{from{opacity:0;transform:translateY(-5px) scale(.97)}to{opacity:1;transform:none}}
+  .theme-option{ display:grid; grid-template-columns:34px 1fr; align-items:center; gap:9px; width:100%; padding:8px; border:1px solid transparent; border-radius:10px; background:transparent; color:var(--text); cursor:pointer; text-align:left; }
+  .theme-option:hover,.theme-option.active{ background:rgba(255,255,255,.055); border-color:var(--border); }
+  .theme-option .palette{ width:30px; height:30px; border-radius:9px; box-shadow:inset 0 0 0 1px rgba(255,255,255,.13),0 5px 16px rgba(0,0,0,.2); }
+  .theme-option strong{ display:block; font-size:11.5px; margin-bottom:2px; }
+  .theme-option span{ color:var(--muted); font:9.5px var(--font-mono); }
+
+  /* ===== Living mini-halo orbital physics ===== */
+  .halo-field{ inset:-88px; perspective:500px; }
+  .mini-halo{ left:50%; top:50%; transform:none; animation:miniBirth 1.2s cubic-bezier(.16,.86,.24,1) forwards; will-change:transform,opacity; }
+  .mini-halo.orbiting{ animation:miniBirth 1.2s cubic-bezier(.16,.86,.24,1) forwards, miniOrbit var(--orbit-duration,10s) linear var(--orbit-delay,0s) infinite; }
+  .mini-halo.dissolving{ animation:miniDissolve 1.8s ease forwards !important; pointer-events:none; }
+  @keyframes miniBirth{0%{transform:translate(-50%,-50%) scale(.2);opacity:0}20%{opacity:1}100%{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1);opacity:.92}}
+  @keyframes miniOrbit{0%{transform:translate(-50%,-50%) translate3d(calc(cos(var(--orbit-angle)) * var(--orbit-radius)),calc(sin(var(--orbit-angle)) * var(--orbit-radius)),0) scale(1)}100%{transform:translate(-50%,-50%) translate3d(calc(cos(calc(var(--orbit-angle) + 360deg)) * var(--orbit-radius)),calc(sin(calc(var(--orbit-angle) + 360deg)) * var(--orbit-radius)),0) scale(1)}}
+  @keyframes miniDissolve{0%{opacity:.92;transform:translate(-50%,-50%) scale(1)}45%{opacity:.52;transform:translate(-50%,-50%) scale(1.28);filter:blur(1px)}100%{opacity:0;transform:translate(-50%,-50%) scale(.1);filter:blur(7px)}}
+  .mini-halo::after{ animation:miniRing 2.2s ease-out infinite; }
+  .halo-idle-note{ margin-top:4px; color:var(--muted-dim); font:9px var(--font-mono); opacity:.55; }
+  @media (prefers-reduced-motion:reduce){ .mini-halo.orbiting{ animation:miniBirth 1.2s ease forwards; } }
+
 </style>
 </head>
 <body>
@@ -532,6 +584,19 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
       </div>
       <div class="top-actions">
+        <div class="theme-picker-wrap" id="themePickerWrap">
+          <button class="theme-btn" id="themeBtn" type="button" aria-expanded="false" title="Change color theme">
+            <span class="theme-swatch" id="themeSwatch"></span><span>Atmosphere</span>
+          </button>
+          <div class="theme-menu" id="themeMenu" role="menu" aria-label="Frontend color themes">
+            <button class="theme-option active" data-theme="aurora" type="button"><span class="palette" style="background:linear-gradient(135deg,#a78bfa,#67e8f9,#f0abfc)"></span><span><strong>Aurora Dream</strong><span>violet · cyan · orchid</span></span></button>
+            <button class="theme-option" data-theme="moonlight" type="button"><span class="palette" style="background:linear-gradient(135deg,#7dd3fc,#c4b5fd,#f5d0fe)"></span><span><strong>Moonlight</strong><span>ice blue · lilac · pearl</span></span></button>
+            <button class="theme-option" data-theme="nebula" type="button"><span class="palette" style="background:linear-gradient(135deg,#c084fc,#fb7185,#38bdf8)"></span><span><strong>Nebula</strong><span>plum · rose · starlight</span></span></button>
+            <button class="theme-option" data-theme="emerald" type="button"><span class="palette" style="background:linear-gradient(135deg,#6ee7b7,#67e8f9,#fde68a)"></span><span><strong>Enchanted Grove</strong><span>mint · aqua · champagne</span></span></button>
+            <button class="theme-option" data-theme="sunset" type="button"><span class="palette" style="background:linear-gradient(135deg,#f9a8d4,#fda4af,#fcd34d)"></span><span><strong>Dreaming Sunset</strong><span>rose · coral · gold</span></span></button>
+            <button class="theme-option" data-theme="amethyst" type="button"><span class="palette" style="background:linear-gradient(135deg,#8b5cf6,#d946ef,#f5bde6)"></span><span><strong>Amethyst</strong><span>violet · magenta · silk</span></span></button>
+          </div>
+        </div>
         <div class="icon-btn" title="Share">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.5l6.8-3.9M8.6 13.5l6.8 3.9"/></svg>
         </div>
@@ -774,15 +839,71 @@
   fileInput.addEventListener('change',()=>{Array.from(fileInput.files).forEach(file=>addChip(file)); fileInput.value='';});
   document.querySelectorAll('.suggestion-card').forEach(card=>{ card.addEventListener('click',()=>{input.value=card.dataset.prompt;input.dispatchEvent(new Event('input'));input.focus();}); card.addEventListener('mousemove',e=>{const r=card.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;card.style.transform=`rotateY(${x*10}deg) rotateX(${-y*10}deg) translateZ(4px)`;}); card.addEventListener('mouseleave',()=>card.style.transform=''); });
   composer.addEventListener('mousemove',e=>{const r=composer.getBoundingClientRect(),x=(e.clientX-r.left)/r.width-.5;composer.style.transform=`rotateX(${x*-.6}deg)`;}); composer.addEventListener('mouseleave',()=>composer.style.transform='');
+
+  const THEMES={
+    aurora:{primary:'#a78bfa',secondary:'#67e8f9',accent:'#f0abfc',deep:'#03050d'},
+    moonlight:{primary:'#93c5fd',secondary:'#c4b5fd',accent:'#f5d0fe',deep:'#050813'},
+    nebula:{primary:'#c084fc',secondary:'#38bdf8',accent:'#fb7185',deep:'#08040f'},
+    emerald:{primary:'#6ee7b7',secondary:'#67e8f9',accent:'#fde68a',deep:'#03100d'},
+    sunset:{primary:'#f9a8d4',secondary:'#fda4af',accent:'#fcd34d',deep:'#100708'},
+    amethyst:{primary:'#8b5cf6',secondary:'#d946ef',accent:'#f5bde6',deep:'#09030f'}
+  };
+  const themeBtn=$('themeBtn'), themeMenu=$('themeMenu'), themeWrap=$('themePickerWrap'), themeSwatch=$('themeSwatch');
+  function applyTheme(name){
+    const t=THEMES[name]||THEMES.aurora;
+    document.documentElement.style.setProperty('--theme-primary',t.primary);
+    document.documentElement.style.setProperty('--theme-secondary',t.secondary);
+    document.documentElement.style.setProperty('--theme-accent',t.accent);
+    document.documentElement.style.setProperty('--theme-deep',t.deep);
+    document.documentElement.style.setProperty('--violet',t.primary);
+    document.documentElement.style.setProperty('--violet-soft',t.primary);
+    document.documentElement.style.setProperty('--teal',t.secondary);
+    document.documentElement.style.setProperty('--amber',t.accent);
+    themeSwatch.style.background=`linear-gradient(135deg,${t.primary},${t.secondary},${t.accent})`;
+    themeMenu.querySelectorAll('.theme-option').forEach(o=>o.classList.toggle('active',o.dataset.theme===name));
+    localStorage.setItem('halo.frontend.theme',name);
+  }
+  const savedTheme=localStorage.getItem('halo.frontend.theme')||'aurora'; applyTheme(savedTheme);
+  themeBtn.addEventListener('click',e=>{e.stopPropagation(); const open=themeMenu.classList.toggle('open'); themeBtn.setAttribute('aria-expanded',String(open));});
+  themeMenu.addEventListener('click',e=>{const option=e.target.closest('.theme-option'); if(!option)return; applyTheme(option.dataset.theme); themeMenu.classList.remove('open'); themeBtn.setAttribute('aria-expanded','false');});
+  document.addEventListener('click',e=>{if(!themeWrap.contains(e.target)){themeMenu.classList.remove('open');themeBtn.setAttribute('aria-expanded','false');}});
+
+  let lastUserActivity=Date.now(), dissolveTimer=null;
+  function markUserActivity(){
+    lastUserActivity=Date.now();
+    if(dissolveTimer) clearTimeout(dissolveTimer);
+    if(miniHaloCount>0) dissolveTimer=setTimeout(dissolveMinis,30000);
+  }
+  function scheduleDissolve(){
+    if(dissolveTimer) clearTimeout(dissolveTimer);
+    if(miniHaloCount>0) dissolveTimer=setTimeout(dissolveMinis,30000);
+  }
+  function dissolveMinis(){
+    if(Date.now()-lastUserActivity<30000){ scheduleDissolve(); return; }
+    const minis=[...haloField.querySelectorAll('.mini-halo')];
+    minis.forEach((mini,index)=>setTimeout(()=>mini.classList.add('dissolving'),index*90));
+    setTimeout(()=>{minis.forEach(m=>m.remove()); miniHaloCount=0; updateHaloCounter();},2000+minis.length*90);
+  }
+  ['pointerdown','keydown','input','touchstart','wheel'].forEach(type=>document.addEventListener(type,markUserActivity,{passive:true}));
+
   function updateHaloCounter(){ if(haloCounter) haloCounter.textContent=`Press Halo to split its energy · ${miniHaloCount} / 10`; if(orb) orb.classList.toggle('has-minis', miniHaloCount>0); }
   function splitHalo(){
+    markUserActivity();
     if(!haloField || miniHaloCount>=10) return;
     miniHaloCount += 1;
-    const mini=document.createElement('span'); mini.className='mini-halo';
-    const angle=(miniHaloCount-1)*137.5*Math.PI/180, radius=34 + (miniHaloCount%3)*17;
-    mini.style.setProperty('--dx', `${Math.cos(angle)*radius}px`); mini.style.setProperty('--dy', `${Math.sin(angle)*radius}px`);
+    const mini=document.createElement('span'); mini.className='mini-halo orbiting';
+    const angle=(miniHaloCount-1)*137.5;
+    const radius=48 + (miniHaloCount%3)*14;
+    const duration=8.5 + (miniHaloCount%4)*1.8;
+    mini.style.setProperty('--dx', `${Math.cos(angle*Math.PI/180)*radius}px`);
+    mini.style.setProperty('--dy', `${Math.sin(angle*Math.PI/180)*radius}px`);
+    mini.style.setProperty('--orbit-angle', `${angle}deg`);
+    mini.style.setProperty('--orbit-radius', `${radius}px`);
+    mini.style.setProperty('--orbit-duration', `${duration}s`);
+    mini.style.setProperty('--orbit-delay', `${-(miniHaloCount*.65)}s`);
     mini.style.setProperty('--mini-hue', `${(248 + miniHaloCount*31)%360}`);
-    mini.style.animationDelay=`${Math.min(.22,miniHaloCount*.018)}s`; haloField.appendChild(mini); updateHaloCounter();
+    mini.style.animationDelay=`0s,${-(miniHaloCount*.65)}s`;
+    haloField.appendChild(mini); updateHaloCounter(); scheduleDissolve();
     setOrbState('complete'); setTimeout(()=>setOrbState(input.value.trim()?'typing':'idle'),650);
   }
   orb?.addEventListener('pointerenter',()=>{ if(!input.value.trim()) setOrbState('typing'); });
@@ -791,6 +912,7 @@
   orb?.addEventListener('click',splitHalo);
   orb?.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); splitHalo(); } });
   updateHaloCounter(); setOrbState('idle');
+  scheduleDissolve();
   ensureActive(); renderHistory(); renderConversation();
 </script>
 </body>
